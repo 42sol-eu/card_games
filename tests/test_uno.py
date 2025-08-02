@@ -68,14 +68,14 @@ class TestUnoGame(unittest.TestCase):
         # Count specific card types
         number_cards = [card for card in deck if card.type == CardType.NUMBER]
         wild_cards = [card for card in deck if card.type == CardType.WILD]
-        wild_draw_four_cards = [card for card in deck if card.type == CardType.WILD_DRAW_FOUR]
+        WILD_DRAW_cards = [card for card in deck if card.type == CardType.WILD_DRAW]
         
         # Should have 76 number cards (19 per color: 1 zero + 2 each of 1-9)
         self.assertEqual(len(number_cards), 76)
         
         # Should have 4 wild cards and 4 wild draw four cards
         self.assertEqual(len(wild_cards), 4)
-        self.assertEqual(len(wild_draw_four_cards), 4)
+        self.assertEqual(len(WILD_DRAW_cards), 4)
     
     def test_card_creation(self):
         """Test card creation and string representation."""

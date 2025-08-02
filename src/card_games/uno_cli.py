@@ -4,7 +4,7 @@ Command-line interface for Uno game with Rich formatting.
 This module provides a beautiful text-based interface for playing Uno games.
 """
 
-from .game import UnoGame, Card, Color, CardType
+from .uno import UnoGame, Card, Color, CardType
 from typing import List, Optional
 from rich.console import Console
 from rich.panel import Panel
@@ -490,7 +490,7 @@ class UnoCLI:
         # Get player action
         hand = self.game.get_player_hand(current_player)
         action = Prompt.ask(
-            f"\n[bold green]Choose action[/bold green]: [cyan][1-{len(hand)}][/cyan] to play card, [cyan], [cyan]'d'[/cyan] to draw, [cyan]'q'[/cyan] to quit"
+            f"\n[bold green]Choose action[/bold green]: [cyan][1-{len(hand)}][/cyan] to play card, [cyan]'1,2,3'[/cyan] for multiple cards, [cyan]'d'[/cyan] to draw, [cyan]'q'[/cyan] to quit"
         ).strip().lower()
         
         if action == 'q':
@@ -512,21 +512,44 @@ class UnoCLI:
             self.game._next_turn()
         else:
             try:
-                # Single card selected
-                display_index = int(action) - 1
-                if 0 <= display_index < len(self._current_sorted_hand):
-                    # Get the card from the sorted hand
-                    card = self._current_sorted_hand[display_index]
-                    # Find the original index in the unsorted hand
-                    original_hand = self.game.get_player_hand(current_player)
-                    card_index = original_hand.index(card)
+                # Check if action contains commas (multiple cards)
+                if ',' in action:
+                    # Multiple cards selected
+                    card_numbers = [int(x.strip()) for x in action.split(',')]
+                    display_indices = [n - 1 for n in card_numbers]
                     
-                    # Handle wild cards
+                    # Validate all indices
+                    if not all(0 <= i < len(self._current_sorted_hand) for i in display_indices):
+                        self.console.print("[red]Invalid card number(s)![/red]")
+                        self._play_turn()  # Try again
+                        return
+                    
+                    # Get the cards from the sorted hand
+                    cards_to_play = [self._current_sorted_hand[i] for i in display_indices]
+                    
+                    # Find the original indices in the unsorted hand
+                    original_hand = self.game.get_player_hand(current_player)
+                    card_indices = []
+                    
+                    for card in cards_to_play:
+                        # Find the card in the original hand (handle duplicates by removing found cards)
+                        temp_hand = original_hand.copy()
+                        for idx, temp_card in enumerate(temp_hand):
+                            if (temp_card.type == card.type and 
+                                temp_card.color == card.color and 
+                                temp_card.value == card.value):
+                                # Find the actual index in the original hand
+                                actual_idx = original_hand.index(temp_card)
+                                card_indices.append(actual_idx)
+                                original_hand[actual_idx] = None  # Mark as used
+                                break
+                    
+                    # Handle wild cards (only if single card)
                     chosen_color = None
-                    if card.type in (CardType.WILD, CardType.WILD_DRAW):
+                    if len(cards_to_play) == 1 and cards_to_play[0].type in (CardType.WILD, CardType.WILD_DRAW):
                         chosen_color = self._choose_color()
                     
-                    success, message = self.game.play_card(self.game.current_player, card_index, chosen_color)
+                    success, message = self.game.play_multiple_cards(self.game.current_player, card_indices, chosen_color)
                     
                     if success:
                         if message:  # Win message
@@ -537,7 +560,10 @@ class UnoCLI:
                             self.console.print(win_panel)
                         else:
                             played_text = Text("Played: ")
-                            played_text.append_text(self._format_card_display(card))
+                            for i, card in enumerate(cards_to_play):
+                                if i > 0:
+                                    played_text.append(", ")
+                                played_text.append_text(self._format_card_display(card))
                             played_panel = Panel(played_text, style="green")
                             self.console.print(played_panel)
                     else:
@@ -545,8 +571,41 @@ class UnoCLI:
                         self.console.print(error_panel)
                         self._play_turn()  # Try again
                 else:
-                    self.console.print("[red]Invalid card number![/red]")
-                    self._play_turn()  # Try again
+                    # Single card selected
+                    display_index = int(action) - 1
+                    if 0 <= display_index < len(self._current_sorted_hand):
+                        # Get the card from the sorted hand
+                        card = self._current_sorted_hand[display_index]
+                        # Find the original index in the unsorted hand
+                        original_hand = self.game.get_player_hand(current_player)
+                        card_index = original_hand.index(card)
+                        
+                        # Handle wild cards
+                        chosen_color = None
+                        if card.type in (CardType.WILD, CardType.WILD_DRAW):
+                            chosen_color = self._choose_color()
+                        
+                        success, message = self.game.play_card(self.game.current_player, card_index, chosen_color)
+                        
+                        if success:
+                            if message:  # Win message
+                                win_panel = Panel(
+                                    Text(f"🎉 {message}", style="bold gold1", justify="center"),
+                                    style="gold1"
+                                )
+                                self.console.print(win_panel)
+                            else:
+                                played_text = Text("Played: ")
+                                played_text.append_text(self._format_card_display(card))
+                                played_panel = Panel(played_text, style="green")
+                                self.console.print(played_panel)
+                        else:
+                            error_panel = Panel(f"❌ {message}", style="red")
+                            self.console.print(error_panel)
+                            self._play_turn()  # Try again
+                    else:
+                        self.console.print("[red]Invalid card number![/red]")
+                        self._play_turn()  # Try again
             except ValueError:
                 self.console.print("[red]Invalid input! Use numbers like '1' or '1,2,3'[/red]")
                 self._play_turn()  # Try again

@@ -7,7 +7,7 @@ This module provides a command-line interface with subcommands for different gam
 
 import argparse
 import sys
-from uno.cli import UnoCLI
+from .uno.cli import UnoCLI
 
 
 def main():
@@ -71,11 +71,10 @@ def main():
             cli.play()
         elif args.interface == "web":
             try:
-                from .uno.ui import UnoUI
+                from .uno.ui_simple import UnoUI
                 print("Starting Uno web interface...")
                 print("Open your browser to http://localhost:8080")
                 ui = UnoUI()
-                ui.show_landing_page()
                 ui.run()
             except ImportError:
                 print("❌ Web UI requires NiceGUI. Install with:")

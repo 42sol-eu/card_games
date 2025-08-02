@@ -61,7 +61,7 @@ def main():
             if game._is_playable(card):
                 # For wild cards, choose a random color
                 chosen_color = None
-                if card.type in (CardType.WILD, CardType.WILD_DRAW_FOUR):
+                if card.type in (CardType.WILD, CardType.WILD_DRAW):
                     import random
                     chosen_color = random.choice([Color.RED, Color.BLUE, Color.GREEN, Color.YELLOW])
                     print(f"{current_player} plays {card} and chooses {chosen_color.value}")

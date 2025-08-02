@@ -8,7 +8,7 @@ A package for card games - teaching children how to code
 # Install from local directory
 pip install -e .
 
-# Or with web UI support
+# Or with web UI support (includes NiceGUI)
 pip install -e ".[ui]"
 ```
 
@@ -20,8 +20,24 @@ python -m src.card_games.uno.cli
 
 ## Games
 
-### UNO
+### UNO 🎮
 Uno is a popular card game that is easy to learn and fun for all ages. The objective of the game is to be the first player to get rid of all your cards. Players take turns matching a card from their hand with the top card of the discard pile by color or number. Special action cards add excitement and strategy to the game.
+
+#### ✨ Interface Options
+
+**🌐 Modern Web UI (NEW!)**
+- Beautiful card animations and effects
+- Responsive design for desktop and mobile
+- Real-time game updates
+- Enhanced visual feedback
+- Color-coded cards with gradients
+- Smooth transitions and hover effects
+
+**💻 CLI Interface**
+- Rich text formatting with colors
+- ASCII art card displays
+- Terminal-based gameplay
+- Full-featured command interface
 
 #### Running the game
 
@@ -33,7 +49,7 @@ card-games --help
 # Play Uno with CLI (default)
 card-games uno
 
-# Play Uno with web interface
+# Play Uno with modern web interface (NEW!)
 card-games uno --interface web
 
 # Play Uno CLI with preset number of players
@@ -44,10 +60,15 @@ card-games uno -i web
 card-games uno -p 2
 ```
 
+**Quick web UI launcher:**
+```bash
+python launch_ui.py
+```
+
 **Direct module execution:**
 ```bash
 # CLI version
-python -m src.card_games.uno_cli
+python -m src.card_games.uno.cli
 
 # Web version (requires nicegui)
 python -m src.card_games.main uno --interface web
