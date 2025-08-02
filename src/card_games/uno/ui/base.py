@@ -31,6 +31,13 @@ class UnoUIBase:
             Color.YELLOW: {"bg": "bg-yellow-400", "text": "text-black", "border": "border-yellow-500"},
             Color.WILD: {"bg": "bg-gradient-to-br from-purple-500 to-pink-500", "text": "text-white", "border": "border-purple-600"}
         }
+        self.button_color = {
+            Color.RED: "red",
+            Color.BLUE: "blue",
+            Color.GREEN: "green",
+            Color.YELLOW: "yellow",
+            Color.WILD: "white"
+        }
     
     @property
     def game(self):
@@ -67,3 +74,13 @@ class UnoUIBase:
         if self.game and not self.game.is_game_over():
             self.current_player = self.game.get_current_player()
         # The timer will handle the UI refresh automatically
+
+    def get_player_index(self) -> int:
+        """Get the current player's index in the game players list."""
+        if not self.player_name or not self.game:
+            return -1
+        try:
+            return list(self.game.players.keys()).index(self.player_name)
+        except ValueError:
+            # Player not found in game
+            return -1

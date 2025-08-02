@@ -20,12 +20,17 @@ class CardActions:
         if not self.ui.player_name or self.ui.current_player != self.ui.player_name:
             ui.notify("It's not your turn!", type='warning')
             return
+        
+        player_index = self.ui.get_player_index()
+        if player_index == -1:
+            ui.notify("Player not found in game!", type='error')
+            return
             
         if self.ui.game.forced_draw > 0:
-            drawn = self.ui.game.handle_forced_draw(list(self.ui.game.players.keys()).index(self.ui.player_name))
+            drawn = self.ui.game.handle_forced_draw(player_index)
             ui.notify(f"Drew {len(drawn)} cards!", type='info')
         else:
-            drawn = self.ui.game.draw_card(list(self.ui.game.players.keys()).index(self.ui.player_name))
+            drawn = self.ui.game.draw_card(player_index)
             info = '( '
             for card in drawn:
                 info += f'{str(card)} '
@@ -42,6 +47,11 @@ class CardActions:
         if not self.ui.player_name or self.ui.current_player != self.ui.player_name:
             ui.notify("It's not your turn!", type='warning')
             return
+        
+        player_index = self.ui.get_player_index()
+        if player_index == -1:
+            ui.notify("Player not found in game!", type='error')
+            return
             
         hand = self.ui.game.get_player_hand(self.ui.player_name)
         card = hand[card_index]
@@ -55,7 +65,7 @@ class CardActions:
         if self.ui.game.forced_draw > 0:
             if card.type == CardType.DRAW_TWO:
                 success, message = self.ui.game.play_card(
-                    list(self.ui.game.players.keys()).index(self.ui.player_name),
+                    player_index,
                     card_index
                 )
                 if success:
@@ -67,7 +77,7 @@ class CardActions:
                 return
         else:
             success, message = self.ui.game.play_card(
-                list(self.ui.game.players.keys()).index(self.ui.player_name),
+                player_index,
                 card_index
             )
             
@@ -101,9 +111,15 @@ class CardActions:
     def _show_color_picker(self, card_index: int):
         """Show color picker for wild cards."""
         self.ui._active_dialog = True
+        
+        player_index = self.ui.get_player_index()
+        if player_index == -1:
+            ui.notify("Player not found in game!", type='error')
+            self.ui._active_dialog = False
+            return
 
         with ui.dialog() as dialog, ui.card().classes("p-6"):
-            ui.label("🌈 Choose a Color").classes("text-2xl font-bold text-center mb-4")
+            ui.label("🌈 Choose a Color X").classes("text-2xl font-bold text-center mb-4")
 
             # Get current player's hand to count cards by color
             hand = self.ui.game.get_player_hand(self.ui.player_name)
@@ -123,7 +139,7 @@ class CardActions:
                     
                     def select_color(c=color):
                         success, message = self.ui.game.play_card(
-                            list(self.ui.game.players.keys()).index(self.ui.player_name),
+                            player_index,
                             card_index,
                             c
                         )

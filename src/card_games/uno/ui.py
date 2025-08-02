@@ -398,7 +398,7 @@ class UnoUI:
     def _show_color_picker(self, card_index: int):
         """Show an enhanced color picker dialog for wild cards."""
         with ui.dialog() as dialog, ui.card().classes("p-6 bg-white/95 backdrop-blur-sm"):
-            ui.label("🌈 Choose a Color").classes("text-3xl font-bold text-center mb-6 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent")
+            ui.label("🌈 Choose your color").classes("text-3xl font-bold text-center mb-6 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent")
 
             with ui.grid(columns=2).classes("gap-6 justify-center"):
                 colors = [Color.RED, Color.BLUE, Color.GREEN, Color.YELLOW]
@@ -408,7 +408,7 @@ class UnoUI:
                     
                     def on_color_select(c=color, idx=card_index):
                         success, message = self.game.play_card(
-                            list(self.game.players.keys()).index(self.current_player),
+                            self.get_current_player_index(),
                             idx,
                             c
                         )
@@ -422,7 +422,7 @@ class UnoUI:
                         else:
                             ui.notify(message or "Couldn't play that card!", type='negative')
                     
-                    color_btn_class = f"w-24 h-24 {style['bg']} {style['text']} rounded-xl shadow-lg font-bold text-xl transition-all duration-300 transform hover:scale-110 {style['hover']} flex items-center justify-center cursor-pointer"
+                    color_btn_class = f"w-24 h-24 rounded-xl shadow-lg font-bold text-xl transition-all duration-300 transform hover:scale-110 {style['hover']} flex items-center justify-center cursor-pointer"
                     
                     with ui.card().classes(color_btn_class).on('click', lambda c=color: on_color_select(c)):
                         ui.label(color.value.title()).classes("font-bold text-center")
@@ -515,3 +515,13 @@ class UnoUI:
             reload=debug,
             favicon="🎮"
         )
+
+    def get_current_player_index(self) -> int:
+        """Get the current player's index in the game players list."""
+        if not self.player_name or not self.game:
+            return -1
+        try:
+            return list(self.game.players.keys()).index(self.current_player)
+        except ValueError:
+            # Player not found in game
+            return -1
