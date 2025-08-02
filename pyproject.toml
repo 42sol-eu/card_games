@@ -1,0 +1,25 @@
+[project]
+name = "card-games"
+version = "2025.0.1"
+description = "Card games package - teaching children how to code"
+authors = [
+    {name = "42sol-eu", email = "felix@42sol.eu"}
+]
+license = {file = "LICENSE"}
+readme = "README.md"
+requires-python = ">=3.8"  
+dependencies = ["rich>=13.0.0"]
+
+[project.optional-dependencies]
+ui = ["nicegui>=2.22.0,<3.0.0"]
+dev = ["mkdocs>=1.6.1"]
+
+[project.scripts]
+card-games = "card_games.main:main"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
