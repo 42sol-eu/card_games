@@ -262,11 +262,16 @@ class UnoGame:
         top_card = self.discard_pile[-1]
 
         if card.type in (CardType.WILD, CardType.WILD_DRAW):
+            if top_card.type in (CardType.WILD, CardType.WILD_DRAW):
+                # Wild cards can always be played on top of wild cards
+                return False
+            
             return True
 
-        return (card.color == self.current_color or
-                card.type == top_card.type or
-                (card.type == CardType.NUMBER and top_card.type == CardType.NUMBER and card.value == top_card.value))
+        return (    card.color == self.current_color or
+                    (card.type == CardType.NUMBER and top_card.type == CardType.NUMBER and card.value == top_card.value) or
+                    (card.type != CardType.NUMBER and top_card.type == card.type)
+                )
 
     def _handle_special_card(self, card: Card):
         """Handle the effects of special cards."""
