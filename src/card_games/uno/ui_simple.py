@@ -5,13 +5,22 @@ This module provides a beautiful web-based UI for playing Uno games with
 enhanced styling and smooth gameplay.
 """
 
+import sys
+import os
+
+# Add the parent directory to sys.path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+
 try:
     from nicegui import ui
 except ImportError:
     print("NiceGUI not installed. Install with: pip install nicegui")
     ui = None
 
-from .game import UnoGame, Card, Color, CardType
+try:
+    from .game import UnoGame, Card, Color, CardType
+except ImportError:
+    from game import UnoGame, Card, Color, CardType
 from typing import List, Optional
 
 
@@ -48,11 +57,13 @@ class UnoUI:
                 cursor: pointer;
                 border-radius: 12px;
                 box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                margin: 0 4px;
             }
             
             .uno-card:hover {
-                transform: translateY(-4px) scale(1.02);
+                transform: translateY(-8px) scale(1.05);
                 box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+                z-index: 10;
             }
             
             .uno-card-disabled {
@@ -63,6 +74,23 @@ class UnoUI:
             .uno-card-disabled:hover {
                 transform: none;
                 box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            }
+            
+            .card-row {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 8px;
+                padding: 20px;
+                min-height: 200px;
+            }
+            
+            .game-header {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 20px;
+                border-radius: 0 0 20px 20px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.1);
             }
             
             .wild-card-gradient {
@@ -126,6 +154,34 @@ class UnoUI:
                         on_click=self._start_game
                     ).classes("w-full p-4 text-xl font-bold bg-gradient-to-r from-green-500 to-blue-500 text-white hover:from-green-600 hover:to-blue-600 transition-all duration-300")
 
+    def _show_player_selection(self):
+        """Show player selection screen after game is created."""
+        with self.main_container:
+            self.main_container.clear()
+            
+            with ui.column().classes("w-full min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center p-4"):
+                with ui.card().classes("w-full max-w-lg mx-auto p-8 bg-white/90 backdrop-blur-sm shadow-2xl"):
+                    ui.html("""
+                        <div class="text-center mb-8">
+                            <h1 class="text-4xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent mb-4">
+                                🎮 Choose Your Player 🎮
+                            </h1>
+                            <p class="text-lg text-gray-600">Select which player you want to play as</p>
+                        </div>
+                    """)
+
+                    with ui.column().classes("w-full gap-4"):
+                        for player_name in self.player_names:
+                            def select_player(name=player_name):
+                                self.viewing_player = name
+                                ui.notify(f"Playing as {name}!", type='positive')
+                                self.show_game_page()
+                            
+                            ui.button(
+                                f"🎯 Play as {player_name}",
+                                on_click=select_player
+                            ).classes("w-full p-4 text-xl font-bold bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 transition-all duration-300 transform hover:scale-105")
+
     def _start_game(self):
         """Start a new game."""
         self.player_names = [input.value.strip() for input in self.player_inputs if input.value.strip()]
@@ -141,10 +197,10 @@ class UnoUI:
         ui.notify(f"Starting game with {len(self.player_names)} players!", type='positive')
         self.game = UnoGame(self.player_names)
         self.current_player = self.game.get_current_player()
-        self.show_game_page()
+        self._show_player_selection()
 
     def show_game_page(self):
-        """Display the main game interface."""
+        """Display the main game interface with header layout and horizontal cards."""
         with self.main_container:
             self.main_container.clear()
             
@@ -153,119 +209,147 @@ class UnoUI:
                 self._show_winner_page()
                 return
             
-            with ui.column().classes("w-full min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-50"):
+            # Check if viewing player is selected
+            if not self.viewing_player:
+                self._show_player_selection()
+                return
+            
+            with ui.column().classes("w-full min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50"):
                 
-                # Game header
-                with ui.card().classes("w-full p-4 bg-white/90 backdrop-blur-sm shadow-lg mb-4"):
-                    with ui.row().classes("w-full items-center justify-between"):
-                        # Current player
-                        ui.label(f"🎯 {self.current_player}'s Turn").classes("text-2xl font-bold text-blue-600 player-turn-glow bg-blue-100 px-4 py-2 rounded-lg")
+                # Game header with all game info
+                self._create_game_header()
+                
+                # Main content area - Player's cards in horizontal row
+                with ui.column().classes("flex-grow p-6"):
+                    
+                    # Player status
+                    is_my_turn = self.current_player == self.viewing_player
+                    if is_my_turn:
+                        ui.label(f"🎯 Your Turn, {self.viewing_player}!").classes("text-3xl font-bold text-center mb-6 text-green-600 animate-pulse")
                         
-                        # Direction
-                        direction_icon = "↻" if self.game.direction == 1 else "↺" 
-                        ui.label(f"Direction: {direction_icon}").classes("text-2xl font-bold text-gray-600")
-                        
-                        # Forced draw warning
+                        # Show forced draw warning for current player
                         if self.game.forced_draw > 0:
-                            ui.label(f"⚠️ Must draw {self.game.forced_draw} cards!").classes("text-red-600 font-bold text-xl bg-red-100 px-3 py-2 rounded-lg")
+                            ui.label(f"⚠️ You must draw {self.game.forced_draw} cards or play +2 to stack!").classes("text-xl font-bold text-center mb-4 text-red-600 bg-red-100 p-3 rounded-lg")
+                    else:
+                        ui.label(f"🕐 Waiting for {self.current_player}'s turn...").classes("text-2xl font-bold text-center mb-6 text-gray-600")
+                    
+                    # Player's hand in horizontal row
+                    ui.label(f"🃏 Your Cards ({len(self.game.get_player_hand(self.viewing_player))} cards)").classes("text-xl font-bold text-center mb-4")
+                    
+                    with ui.element('div').classes("card-row"):
+                        self._create_horizontal_hand()
 
-                # Main game area
-                with ui.row().classes("w-full flex-grow gap-6 p-6"):
+    def _create_game_header(self):
+        """Create the header with game information."""
+        with ui.element('div').classes("game-header"):
+            with ui.row().classes("w-full items-center justify-between"):
+                
+                # Left side - Current player and direction
+                with ui.column().classes("gap-2"):
+                    ui.label(f"🎯 Current Turn").classes("text-lg font-semibold opacity-80")
+                    ui.label(f"{self.current_player}").classes("text-2xl font-bold")
                     
-                    # Left - Other players
-                    with ui.column().classes("w-1/4 gap-4"):
-                        ui.label("👥 Other Players").classes("text-xl font-bold text-center mb-4")
-                        
-                        player_counts = self.game.get_player_counts()
-                        for name, count in player_counts.items():
-                            if name != self.current_player:
-                                with ui.card().classes("p-4 bg-white/80 shadow-lg hover:shadow-xl transition-all duration-300"):
-                                    ui.label(f"🎮 {name}").classes("font-bold text-lg")
-                                    ui.label(f"Cards: {count}").classes("text-blue-600 font-semibold")
-                                    if count == 1:
-                                        ui.label("🚨 UNO!").classes("text-red-600 font-bold animate-pulse")
+                    direction_icon = "↻" if self.game.direction == 1 else "↺"
+                    ui.label(f"Direction: {direction_icon}").classes("text-lg")
+                
+                # Center - Top card (larger display)
+                with ui.column().classes("items-center gap-2"):
+                    ui.label("🎯 Current Card").classes("text-lg font-semibold opacity-80")
+                    self._create_header_top_card()
+                
+                # Right side - Other players and draw pile
+                with ui.column().classes("gap-2 items-end"):
+                    ui.label("👥 Other Players").classes("text-lg font-semibold opacity-80")
                     
-                    # Center - Game board
-                    with ui.column().classes("w-2/4 items-center gap-8"):
-                        
-                        # Top card
-                        with ui.column().classes("items-center gap-4"):
-                            ui.label("🎯 Current Card").classes("text-xl font-bold")
-                            self._create_top_card()
-                        
-                        # Draw pile
-                        with ui.column().classes("items-center gap-4"):
-                            ui.label("🂠 Draw Pile").classes("text-lg font-bold")
-                            
-                            with ui.card().classes("w-28 h-40 bg-gradient-to-br from-gray-600 to-gray-800 text-white cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex flex-col items-center justify-center").on('click', self._draw_card):
-                                ui.label("DRAW").classes("text-lg font-bold")
-                                ui.label(f"{len(self.game.draw_pile)}").classes("text-sm")
+                    # Other players info (compact)
+                    player_counts = self.game.get_player_counts()
+                    other_players = [(name, count) for name, count in player_counts.items() if name != self.viewing_player]
                     
-                    # Right - Player hand
-                    with ui.column().classes("w-1/4 gap-4"):
-                        ui.label(f"🃏 Your Hand").classes("text-xl font-bold text-center")
-                        ui.label(f"Cards: {len(self.game.get_player_hand(self.current_player))}").classes("text-center text-gray-600 mb-4")
-                        
-                        with ui.scroll_area().classes("h-[500px]"):
-                            self._create_player_hand()
+                    for name, count in other_players:
+                        player_class = "text-lg font-bold" + (" text-yellow-300" if count == 1 else " text-white")
+                        status = "🚨 UNO!" if count == 1 else f"{count} cards"
+                        ui.label(f"{name}: {status}").classes(player_class)
+                    
+                    # Controls row
+                    with ui.row().classes("items-center gap-2 mt-2"):
+                        ui.label("🂠 Draw Pile").classes("text-sm opacity-80")
+                        ui.button(f"Draw ({len(self.game.draw_pile)})", on_click=self._draw_card).classes("bg-white/20 hover:bg-white/30 text-white font-bold py-2 px-4 rounded-lg")
+                        ui.button("🔄 Change Player", on_click=self._show_player_selection).classes("bg-white/20 hover:bg-white/30 text-white font-bold py-2 px-4 rounded-lg")
 
-    def _create_top_card(self):
-        """Create the top card display."""
+    def _create_header_top_card(self):
+        """Create a compact top card display for the header."""
         top_card = self.game.get_top_card()
         style = self.color_styles.get(top_card.color, self.color_styles[Color.RED])
         
         if top_card.color == Color.WILD:
             if self.game.current_color:
                 current_style = self.color_styles.get(self.game.current_color, self.color_styles[Color.RED])
-                card_class = f"w-32 h-48 rounded-xl shadow-xl flex flex-col items-center justify-center border-4 {current_style['border']} wild-card-gradient"
+                card_class = f"w-20 h-28 rounded-lg shadow-lg flex flex-col items-center justify-center border-2 {current_style['border']} wild-card-gradient"
             else:
-                card_class = "w-32 h-48 rounded-xl shadow-xl flex flex-col items-center justify-center border-4 border-purple-600 wild-card-gradient"
+                card_class = "w-20 h-28 rounded-lg shadow-lg flex flex-col items-center justify-center border-2 border-purple-300 wild-card-gradient"
         else:
-            card_class = f"w-32 h-48 {style['bg']} {style['text']} rounded-xl shadow-xl flex flex-col items-center justify-center border-4 {style['border']}"
+            card_class = f"w-20 h-28 {style['bg']} {style['text']} rounded-lg shadow-lg flex flex-col items-center justify-center border-2 {style['border']}"
         
         with ui.card().classes(card_class):
-            ui.label(str(top_card)).classes("text-3xl font-bold mb-2")
+            ui.label(str(top_card)).classes("text-xl font-bold")
             
             if top_card.color == Color.WILD and self.game.current_color:
-                ui.label(f"{self.game.current_color.value.title()}").classes("text-sm font-bold bg-white/20 px-2 py-1 rounded")
+                ui.label(f"{self.game.current_color.value.title()}").classes("text-xs font-bold bg-white/20 px-1 rounded")
             elif top_card.color != Color.WILD:
-                ui.label(top_card.color.value.title()).classes("text-sm font-bold bg-white/20 px-2 py-1 rounded")
+                ui.label(top_card.color.value.title()).classes("text-xs font-bold bg-white/20 px-1 rounded")
 
-    def _create_player_hand(self):
-        """Create the player's hand display."""
-        hand = self.game.get_player_hand(self.current_player)
+    def _create_horizontal_hand(self):
+        """Create the player's hand in a horizontal row."""
+        if not self.viewing_player:
+            return
+            
+        hand = self.game.get_player_hand(self.viewing_player)
         sorted_hand = sorted(hand, key=lambda card: card.get_sort_key())
         
         for i, card in enumerate(sorted_hand):
             original_index = hand.index(card)
-            self._create_hand_card(card, original_index, i)
+            self._create_horizontal_card(card, original_index, i)
 
-    def _create_hand_card(self, card: Card, original_index: int, display_index: int):
-        """Create a single card in the hand."""
+    def _create_horizontal_card(self, card: Card, original_index: int, display_index: int):
+        """Create a single card in horizontal layout."""
         style = self.color_styles.get(card.color, self.color_styles[Color.RED])
-        playable = self._is_card_playable(card)
+        playable = self._is_card_playable(card) and (self.current_player == self.viewing_player)
         
+        # Card styling based on playability
         if playable:
             if card.color == Color.WILD:
-                card_class = "uno-card w-full h-20 wild-card-gradient text-white rounded-lg shadow-lg flex items-center justify-between p-3 mb-2 border-2 border-green-400"
+                card_class = "uno-card w-24 h-36 wild-card-gradient text-white rounded-xl shadow-lg border-4 border-green-400 flex flex-col items-center justify-center"
             else:
-                card_class = f"uno-card w-full h-20 {style['bg']} {style['text']} rounded-lg shadow-lg flex items-center justify-between p-3 mb-2 border-2 border-green-400"
+                card_class = f"uno-card w-24 h-36 {style['bg']} {style['text']} rounded-xl shadow-lg border-4 border-green-400 flex flex-col items-center justify-center"
         else:
-            card_class = "uno-card-disabled w-full h-20 bg-gray-300 text-gray-500 rounded-lg shadow-lg flex items-center justify-between p-3 mb-2 border-2 border-gray-400"
+            card_class = f"uno-card-disabled w-24 h-36 bg-gray-300 text-gray-500 rounded-xl shadow-lg border-2 border-gray-400 flex flex-col items-center justify-center"
         
         with ui.card().classes(card_class):
-            with ui.column().classes("gap-1"):
-                ui.label(f"#{display_index + 1}").classes("text-xs opacity-70")
-                ui.label(str(card)).classes("text-lg font-bold")
-                if card.color != Color.WILD:
-                    ui.label(card.color.value.title()).classes("text-xs")
+            # Card number (small, at top)
+            ui.label(f"#{display_index + 1}").classes("text-xs opacity-70 mb-1")
             
+            # Card value (large, center)
+            ui.label(str(card)).classes("text-2xl font-bold mb-1")
+            
+            # Color name (small, at bottom)
+            if card.color != Color.WILD:
+                ui.label(card.color.value.title()).classes("text-xs font-semibold")
+            
+            # Play button (only if playable and my turn)
             if playable:
-                ui.button("PLAY", on_click=lambda idx=original_index: self._play_card(idx)).classes("bg-white/20 hover:bg-white/30 font-bold py-1 px-3 rounded")
+                ui.button("PLAY", on_click=lambda idx=original_index: self._play_card(idx)).classes("mt-2 bg-white/30 hover:bg-white/50 font-bold py-1 px-2 rounded text-xs")
+            
+            # Make entire card clickable if playable
+            if playable:
+                card.on('click', lambda idx=original_index: self._play_card(idx))
 
     def _play_card(self, card_index: int):
-        """Play a card."""
-        hand = self.game.get_player_hand(self.current_player)
+        """Play a card - only if it's the viewing player's turn."""
+        if not self.viewing_player or self.current_player != self.viewing_player:
+            ui.notify("It's not your turn!", type='warning')
+            return
+            
+        hand = self.game.get_player_hand(self.viewing_player)
         card = hand[card_index]
         
         # Handle wild cards
@@ -277,7 +361,7 @@ class UnoUI:
         if self.game.forced_draw > 0:
             if card.type == CardType.DRAW_TWO:
                 success, message = self.game.play_card(
-                    list(self.game.players.keys()).index(self.current_player),
+                    list(self.game.players.keys()).index(self.viewing_player),
                     card_index
                 )
                 if success:
@@ -287,7 +371,7 @@ class UnoUI:
                 return
         else:
             success, message = self.game.play_card(
-                list(self.game.players.keys()).index(self.current_player),
+                list(self.game.players.keys()).index(self.viewing_player),
                 card_index
             )
             
@@ -299,12 +383,16 @@ class UnoUI:
         self.update_game_state()
 
     def _draw_card(self):
-        """Draw cards."""
+        """Draw cards - only if it's the viewing player's turn."""
+        if not self.viewing_player or self.current_player != self.viewing_player:
+            ui.notify("It's not your turn!", type='warning')
+            return
+            
         if self.game.forced_draw > 0:
-            drawn = self.game.handle_forced_draw(list(self.game.players.keys()).index(self.current_player))
+            drawn = self.game.handle_forced_draw(list(self.game.players.keys()).index(self.viewing_player))
             ui.notify(f"Drew {len(drawn)} cards!", type='info')
         else:
-            drawn = self.game.draw_card(list(self.game.players.keys()).index(self.current_player))
+            drawn = self.game.draw_card(list(self.game.players.keys()).index(self.viewing_player))
             ui.notify(f"Drew {len(drawn)} card!", type='info')
         
         self.game._next_turn()
@@ -323,7 +411,7 @@ class UnoUI:
                     
                     def select_color(c=color):
                         success, message = self.game.play_card(
-                            list(self.game.players.keys()).index(self.current_player),
+                            list(self.game.players.keys()).index(self.viewing_player),
                             card_index,
                             c
                         )
@@ -381,6 +469,7 @@ class UnoUI:
         """Start a completely new game."""
         self.game = None
         self.player_names = []
+        self.viewing_player = None
         self.show_landing_page()
 
     def _play_again(self):
@@ -388,10 +477,14 @@ class UnoUI:
         if self.player_names:
             self.game = UnoGame(self.player_names)
             self.current_player = self.game.get_current_player()
-            self.show_game_page()
+            self._show_player_selection()
 
     def _is_card_playable(self, card: Card) -> bool:
         """Check if a card is playable."""
+        # Only allow playing if it's the viewing player's turn
+        if not self.viewing_player or self.current_player != self.viewing_player:
+            return False
+            
         if self.game.forced_draw > 0:
             return card.type == CardType.DRAW_TWO
         
